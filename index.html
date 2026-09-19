@@ -380,78 +380,270 @@
         }
 
         // --- CALCULATION LOGIC ---
+// BLW/DLW DUTY-DATE LOGIC
+// Duty Date changes at 04:00 AM.
+// 00:00 to 03:59 belongs to the previous Duty Date.
+// Third Shift is NOT included in this version.
 
-        const isDayOff = (date, holidays) => date.getDay() === 0 || holidays.has(date.toISOString().slice(0, 10));
+const formatDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
-        const getWorkableSlotsForDate = (date, shiftType) => {
-            const dayOfWeek = date.getDay();
-            const config = SHIFT_CONFIG[shiftType][dayOfWeek === 6 ? 'saturday' : 'weekday'];
+// Returns the Duty Date for any actual date/time.
+// Before 04:00 AM = previous calendar date.
+// 04:00 AM and after = current calendar date.
+const getDutyDate = (dateTime) => {
+    const dutyDate = new Date(dateTime);
 
-            const createDate = (h, m) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
-            
-            let shiftStart = createDate(config.start[0], config.start[1]);
-            let shiftEnd = createDate(config.end[0], config.end[1]);
+    if (dutyDate.getHours() < 4) {
+        dutyDate.setDate(dutyDate.getDate() - 1);
+    }
 
-            // Handle night shift crossing midnight
-            if (shiftType === 'night' && config.end[0] < config.start[0]) {
-                shiftEnd.setDate(shiftEnd.getDate() + 1);
-            }
-            if (config.break) {
-                let breakStart = createDate(config.break.start[0], config.break.start[1]);
-                let breakEnd = createDate(config.break.end[0], config.break.end[1]);
-                if (shiftType === 'night' && config.break.end[0] < config.break.start[0]) {
-                    breakEnd.setDate(breakEnd.getDate() + 1);
-                }
-                return [[shiftStart, breakStart], [breakEnd, shiftEnd]];
-            }
-            return [[shiftStart, shiftEnd]];
-        };
+    dutyDate.setHours(0, 0, 0, 0);
+    return dutyDate;
+};
 
-        function calculateCompletionTime({ totalHours, startTime, holidays, initialShift, shiftChangeDate, newShift }) {
-            let remainingHours = totalHours;
-            let currentDateTime = new Date(startTime);
-            const workBreakdown = [];
-            
-            while (remainingHours > 1 / 60) { // Loop until less than a minute is left
-                let currentDate = new Date(currentDateTime);
-                currentDate.setHours(0,0,0,0);
+// Check Sunday / National Holiday using DUTY DATE,
+// not the actual calendar date.
+const isDayOff = (dutyDate, holidays) => {
+    return (
+        dutyDate.getDay() === 0 ||
+        holidays.has(formatDateKey(dutyDate))
+    );
+};
 
-                if (isDayOff(currentDate, holidays)) {
-                    workBreakdown.push(`${currentDate.toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long'})}: Day Off`);
-                    currentDateTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1, 0, 0);
-                    continue;
-                }
-                
-                // Determine the current shift, applying the change if the date matches
-                const currentShift = (shiftChangeDate && currentDate.toISOString().slice(0, 10) >= shiftChangeDate) ? newShift : initialShift;
+// Get the working slots belonging to ONE DUTY DATE.
+const getWorkableSlotsForDate = (dutyDate, shiftType) => {
+    const dayOfWeek = dutyDate.getDay();
 
-                const workSlots = getWorkableSlotsForDate(currentDate, currentShift);
-                let workedToday = false;
+    const config =
+        SHIFT_CONFIG[shiftType][
+            dayOfWeek === 6 ? 'saturday' : 'weekday'
+        ];
 
-                for (const [slotStart, slotEnd] of workSlots) {
-                    if (currentDateTime >= slotEnd) continue;
-                    if (currentDateTime < slotStart) currentDateTime = new Date(slotStart);
+    const makeDate = (baseDate, h, m) => {
+        return new Date(
+            baseDate.getFullYear(),
+            baseDate.getMonth(),
+            baseDate.getDate(),
+            h,
+            m,
+            0,
+            0
+        );
+    };
 
-                    const availableHours = (slotEnd.getTime() - currentDateTime.getTime()) / 3600000;
-                    const hoursToWork = Math.min(remainingHours, availableHours);
+    let shiftStart = makeDate(
+        dutyDate,
+        config.start[0],
+        config.start[1]
+    );
 
-                    if (hoursToWork > 0) {
-                        currentDateTime = new Date(currentDateTime.getTime() + hoursToWork * 3600000);
-                        remainingHours -= hoursToWork;
-                        workBreakdown.push(`${currentDate.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short'})}: Worked ${formatHours(hoursToWork)}`);
-                        workedToday = true;
-                    }
-                    if (remainingHours < 1 / 60) break;
-                }
-                
-                if (remainingHours < 1 / 60) break;
-                
-                if (!workedToday) { // Advance day if no work was possible today
-                    currentDateTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1, 0, 0);
-                }
-            }
-            return { finalTime: currentDateTime, breakdown: workBreakdown };
+    let shiftEnd = makeDate(
+        dutyDate,
+        config.end[0],
+        config.end[1]
+    );
+
+    // Night shift crosses midnight.
+    if (
+        shiftType === 'night' &&
+        config.end[0] < config.start[0]
+    ) {
+        shiftEnd.setDate(shiftEnd.getDate() + 1);
+    }
+
+    if (config.break) {
+        let breakStart = makeDate(
+            dutyDate,
+            config.break.start[0],
+            config.break.start[1]
+        );
+
+        let breakEnd = makeDate(
+            dutyDate,
+            config.break.end[0],
+            config.break.end[1]
+        );
+
+        if (
+            shiftType === 'night' &&
+            config.break.end[0] < config.break.start[0]
+        ) {
+            breakEnd.setDate(breakEnd.getDate() + 1);
         }
+
+        return [
+            [shiftStart, breakStart],
+            [breakEnd, shiftEnd]
+        ];
+    }
+
+    return [[shiftStart, shiftEnd]];
+};
+
+
+function calculateCompletionTime({
+    totalHours,
+    startTime,
+    holidays,
+    initialShift,
+    shiftChangeDate,
+    newShift
+}) {
+    let remainingHours = totalHours;
+    let currentDateTime = new Date(startTime);
+    const workBreakdown = [];
+
+    // Safety limit prevents an accidental infinite loop.
+    let safetyCounter = 0;
+
+    while (remainingHours > 1 / 60) {
+
+        safetyCounter++;
+
+        if (safetyCounter > 10000) {
+            throw new Error(
+                "Calculation stopped because the schedule could not be resolved."
+            );
+        }
+
+        // IMPORTANT:
+        // 00:00–03:59 belongs to the previous Duty Date.
+        const dutyDate = getDutyDate(currentDateTime);
+
+        const dutyDateKey = formatDateKey(dutyDate);
+
+        // Holiday and Sunday are checked against DUTY DATE.
+        if (isDayOff(dutyDate, holidays)) {
+
+            workBreakdown.push(
+                `${dutyDate.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                })}: Day Off / National Holiday`
+            );
+
+            // Next Duty Date begins at 04:00 AM.
+            const nextDutyDate = new Date(dutyDate);
+            nextDutyDate.setDate(nextDutyDate.getDate() + 1);
+            nextDutyDate.setHours(4, 0, 0, 0);
+
+            currentDateTime = nextDutyDate;
+
+            continue;
+        }
+
+        // Shift change is also based on DUTY DATE.
+        const currentShift =
+            (
+                shiftChangeDate &&
+                dutyDateKey >= shiftChangeDate
+            )
+                ? (newShift || initialShift)
+                : initialShift;
+
+        const workSlots = getWorkableSlotsForDate(
+            dutyDate,
+            currentShift
+        );
+
+        let workedThisDutyDate = false;
+
+        for (const [slotStart, slotEnd] of workSlots) {
+
+            // This slot has already finished.
+            if (currentDateTime >= slotEnd) {
+                continue;
+            }
+
+            // If current time is before this working slot,
+            // move forward to the slot start.
+            if (currentDateTime < slotStart) {
+                currentDateTime = new Date(slotStart);
+            }
+
+            // Current time may already be beyond the slot
+            // after the adjustment.
+            if (currentDateTime >= slotEnd) {
+                continue;
+            }
+
+            const availableHours =
+                (slotEnd.getTime() -
+                    currentDateTime.getTime()) / 3600000;
+
+            const hoursToWork = Math.min(
+                remainingHours,
+                availableHours
+            );
+
+            if (hoursToWork > 0) {
+
+                const oldTime = new Date(currentDateTime);
+
+                currentDateTime = new Date(
+                    currentDateTime.getTime() +
+                    hoursToWork * 3600000
+                );
+
+                remainingHours -= hoursToWork;
+
+                workBreakdown.push(
+                    `${dutyDate.toLocaleDateString('en-GB', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    })} (${currentShift === 'day' ? 'Day Shift' : 'Night Shift'}): Worked ${formatHours(hoursToWork)}`
+                );
+
+                workedThisDutyDate = true;
+            }
+
+            if (remainingHours < 1 / 60) {
+                break;
+            }
+        }
+
+        if (remainingHours < 1 / 60) {
+            break;
+        }
+
+        // No more work possible in this Duty Date.
+        // Move directly to the next Duty Date at 04:00 AM.
+        const nextDutyDate = new Date(dutyDate);
+        nextDutyDate.setDate(nextDutyDate.getDate() + 1);
+        nextDutyDate.setHours(4, 0, 0, 0);
+
+        // If we worked a Night Shift, the actual shift can finish
+        // at 01:30 on the following calendar date.
+        // That time still belongs to the current Duty Date.
+        //
+        // Therefore, before jumping to 04:00, check whether
+        // the current time is still inside the current duty's
+        // Night Shift ending window.
+        if (
+            currentShift === 'night' &&
+            currentDateTime < workSlots[workSlots.length - 1][1]
+        ) {
+            // Continue the same Night Duty.
+            continue;
+        }
+
+        currentDateTime = nextDutyDate;
+    }
+
+    return {
+        finalTime: currentDateTime,
+        breakdown: workBreakdown
+    };
+}
 
 
         // --- EVENT HANDLERS & INITIALIZATION ---
