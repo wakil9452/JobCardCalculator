@@ -25,13 +25,20 @@
     </script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .container { max-width: 800px; }
-        #messageBox { animation: fadeIn 0.3s ease-in-out; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+        }
+        #messageBox {
+            animation: fadeIn 0.3s ease-in-out;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
+        /* Simple spinner for button loading state */
         .spinner {
             border: 2px solid #f3f3f3;
             border-top: 2px solid #3498db;
@@ -51,8 +58,8 @@
     <div class="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 w-full container">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Job Card Time Calculator</h1>
 
-        <div class="text-center bg-orange-100 py-2 px-4 rounded-lg mb-6">
-            <p class="font-semibold text-indigo-800">Heavy Machine Shop, BLW Varanasi UP 221004</p>            
+        <div class="text-center bg-orange-250 py-2 px-4 rounded-lg mb-6">
+            <p class="font-semibold text-indigo-800">By Sudhanshu Kumar Tiwari, Heavy Machine Shop, BLW Varanasi UP 221004</p>            
         </div>
 
         <form id="jobCardForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -62,11 +69,11 @@
                 <div class="flex gap-4">
                     <div class="flex-1">
                         <label for="assignedHoursInput" class="block text-xs font-medium text-gray-500">Hours</label>
-                        <input type="number" id="assignedHoursInput" step="1" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="e.g., 24" required>
+                        <input type="number" id="assignedHoursInput" step="1" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="e.g., 15" required>
                     </div>
                     <div class="flex-1">
                         <label for="assignedMinutesInput" class="block text-xs font-medium text-gray-500">Minutes</label>
-                        <input type="number" id="assignedMinutesInput" step="1" min="0" max="59" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="e.g., 10" required>
+                        <input type="number" id="assignedMinutesInput" step="1" min="0" max="59" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="e.g., 30" required>
                     </div>
                 </div>
             </div>
@@ -91,7 +98,7 @@
 
             <div class="md:col-span-2">
                 <label for="holidays" class="block text-sm font-medium text-gray-700">National Holidays (YYYY-MM-DD, comma-separated)</label>
-                <input type="text" id="holidays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="e.g., 2026-09-17">
+                <input type="text" id="holidays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border" placeholder="e.g., 2025-08-15, 2025-10-02">
             </div>
 
             <div class="md:col-span-2 mt-4 border-t pt-4 border-gray-200">
@@ -113,10 +120,10 @@
             </div>
 
             <div class="md:col-span-2 mt-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                <button type="submit" id="calculateBtn" class="flex-1 bg-indigo-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-indigo-700 transition duration-300 flex items-center justify-center">
+                <button type="submit" id="calculateBtn" class="flex-1 bg-indigo-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 flex items-center justify-center">
                     <span>Calculate 'Out' Times</span>
                 </button>
-                <button type="button" id="clearBtn" class="flex-1 bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-gray-400 transition duration-300">
+                <button type="button" id="clearBtn" class="flex-1 bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-300">
                     Clear Form
                 </button>
             </div>
@@ -145,7 +152,8 @@
 
         <div class="mt-10">
             <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Saved Job Cards</h2>
-            <div id="savedJobCards" class="space-y-4"></div>
+            <div id="savedJobCards" class="space-y-4">
+                </div>
             <button id="exportBtn" class="mt-4 w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl shadow-lg hover:bg-blue-700 transition duration-300">
                 Export Data to CSV
             </button>
@@ -163,14 +171,26 @@
     </div>
 
     <script>
+        // --- CONFIGURATION ---
+        const SHIFT_CONFIG = {
+            day: {
+                weekday: { start: [6, 30], end: [16, 0], break: { start: [11, 30], end: [12, 30] } },
+                saturday: { start: [6, 30], end: [12, 0], break: null }
+            },
+            night: {
+                weekday: { start: [16, 0], end: [1, 30], break: { start: [21, 0], end: [22, 0] } },
+                saturday: { start: [12, 0], end: [17, 0], break: null }
+            }
+        };
+
+        // --- GLOBAL VARIABLES & UI ELEMENTS ---
+        let currentCalculationResult = null; // Store the latest calculation result for saving
+
         const ui = {
             form: document.getElementById('jobCardForm'),
             assignedHoursInput: document.getElementById('assignedHoursInput'),
             assignedMinutesInput: document.getElementById('assignedMinutesInput'),
-            shiftSelect: document.getElementById('shift'),
             dateIn: document.getElementById('dateIn'),
-            timeIn: document.getElementById('timeIn'),
-            holidaysInput: document.getElementById('holidays'),
             shiftChangeDateInput: document.getElementById('shiftChangeDate'),
             shiftChangeSelect: document.getElementById('shiftChange'),
             resultDiv: document.getElementById('result'),
@@ -179,18 +199,14 @@
             calculateBtn: document.getElementById('calculateBtn'),
             saveBtn: document.getElementById('saveBtn'),
             clearBtn: document.getElementById('clearBtn'),
-            exportBtn: document.getElementById('exportBtn'),
+            exportBtn: document.getElementById('exportBtn'), // Added export button
             messageBox: document.getElementById('messageBox'),
             messageTitle: document.getElementById('messageTitle'),
             messageText: document.getElementById('messageText'),
             closeMessageBtn: document.getElementById('closeMessage'),
-            outIncentiveHours: document.getElementById('out_incentiveHours'),
-            outInTime: document.getElementById('out_inTime'),
-            outOutTime: document.getElementById('out_outTime'),
-            outRoundedOutTime: document.getElementById('out_roundedOutTime')
         };
 
-        let currentCalculationResult = null;
+        // --- UTILITY FUNCTIONS ---
 
         const showMessage = (message, isError = true) => {
             ui.messageTitle.textContent = isError ? 'Error' : 'Success';
@@ -200,16 +216,21 @@
             ui.closeMessageBtn.className = isError ? 'bg-red-500 text-white px-4 py-2 rounded-lg' : 'bg-green-500 text-white px-4 py-2 rounded-lg';
         };
 
-        ui.closeMessageBtn.addEventListener('click', () => ui.messageBox.classList.add('hidden'));
-
         const roundToNearestQuarterHour = (date) => {
             const newDate = new Date(date.getTime());
             const minutes = newDate.getMinutes();
-            if (minutes <= 7) newDate.setMinutes(0, 0, 0);
-            else if (minutes <= 22) newDate.setMinutes(15, 0, 0);
-            else if (minutes <= 37) newDate.setMinutes(30, 0, 0);
-            else if (minutes <= 52) newDate.setMinutes(45, 0, 0);
-            else newDate.setHours(newDate.getHours() + 1, 0, 0, 0);
+
+            if (minutes <= 7) {
+                newDate.setMinutes(0, 0, 0);
+            } else if (minutes <= 22) {
+                newDate.setMinutes(15, 0, 0);
+            } else if (minutes <= 37) {
+                newDate.setMinutes(30, 0, 0);
+            } else if (minutes <= 52) {
+                newDate.setMinutes(45, 0, 0);
+            } else { // 53 to 59
+                newDate.setHours(newDate.getHours() + 1, 0, 0, 0);
+            }
             return newDate;
         };
 
@@ -227,227 +248,135 @@
             dateStyle: 'full', timeStyle: 'short', hour12: false
         }).format(date).replace(' at ', ', ');
 
-        // --- CORE CALCULATION ENGINE WITH NIGHT SHIFT LOGIC ---
-        function calculateJobCard(assignedHours, initialShift, startDateStr, startTimeStr, holidaysList, shiftChangeDateStr, newShiftType) {
-            let totalMinutesRemaining = Math.round(assignedHours * 60);
-            let currentPointer = new Date(`${startDateStr}T${startTimeStr}:00`);
-
-            const holidays = holidaysList.map(h => h.trim());
-            const breakdown = [];
-
-            while (totalMinutesRemaining > 0) {
-                const dayOfWeek = currentPointer.getDay(); // 0: Sun, 6: Sat
-                const currentDateStr = currentPointer.toISOString().split('T')[0];
-
-                // Determine active shift (check for shift change)
-                let activeShift = initialShift;
-                if (shiftChangeDateStr && newShiftType && currentDateStr >= shiftChangeDateStr) {
-                    activeShift = newShiftType;
+        const setButtonLoading = (button, isLoading) => {
+            button.disabled = isLoading;
+            const span = button.querySelector('span');
+            if (isLoading) {
+                span.classList.add('hidden');
+                if (!button.querySelector('.spinner')) {
+                    const spinner = document.createElement('div');
+                    spinner.className = 'spinner';
+                    button.prepend(spinner);
                 }
-
-                // Check Sunday or Holiday
-                if (dayOfWeek === 0 || holidays.includes(currentDateStr)) {
-                    // Move to next day 00:00
-                    currentPointer.setDate(currentPointer.getDate() + 1);
-                    currentPointer.setHours(0, 0, 0, 0);
-                    continue;
-                }
-
-                // Define Shift Boundaries for current day
-                let shiftStartHour = 6, shiftStartMin = 30;
-                let shiftEndHour = 16, shiftEndMin = 0;
-                let hasLunch = true;
-                let lunchStartHour = 11, lunchStartMin = 30;
-                let lunchEndHour = 12, lunchEndMin = 30;
-
-                if (activeShift === 'night') {
-                    if (dayOfWeek === 6) { // Saturday Night Shift
-                        shiftStartHour = 12; shiftStartMin = 0;
-                        shiftEndHour = 17; shiftEndMin = 0;
-                        hasLunch = false;
-                    } else { // Weekday Night Shift (16:00 to 01:30 next day)
-                        shiftStartHour = 16; shiftStartMin = 0;
-                        shiftEndHour = 25; shiftEndMin = 30; // 25:30 represents 01:30 AM next day
-                        hasLunch = true;
-                        lunchStartHour = 21; lunchStartMin = 0;
-                        lunchEndHour = 22; lunchEndMin = 0;
-                    }
-                } else if (dayOfWeek === 6) { // Saturday Day Shift
-                    shiftEndHour = 12; shiftEndMin = 0;
-                    hasLunch = false;
-                }
-
-                // Convert current time to relative minutes from shift start
-                let currentHour = currentPointer.getHours();
-                let currentMin = currentPointer.getMinutes();
-                
-                // Adjust for early morning times (00:00 - 01:30) in night shift
-                if (activeShift === 'night' && dayOfWeek !== 6 && currentHour < 2) {
-                    currentHour += 24;
-                }
-
-                let currentRelMin = currentHour * 60 + currentMin;
-                let startRelMin = shiftStartHour * 60 + shiftStartMin;
-                let endRelMin = shiftEndHour * 60 + shiftEndMin;
-                let lunchStartRelMin = lunchStartHour * 60 + lunchStartMin;
-                let lunchEndRelMin = lunchEndHour * 60 + lunchEndMin;
-
-                // If before shift start, jump to shift start
-                if (currentRelMin < startRelMin) {
-                    currentRelMin = startRelMin;
-                    let realHour = Math.floor(startRelMin / 60) % 24;
-                    currentPointer.setHours(realHour, startRelMin % 60, 0, 0);
-                }
-
-                // If past shift end, jump to next day
-                if (currentRelMin >= endRelMin) {
-                    currentPointer.setDate(currentPointer.getDate() + 1);
-                    currentPointer.setHours(0, 0, 0, 0);
-                    continue;
-                }
-
-                // Handle Lunch Break Skip
-                if (hasLunch && currentRelMin >= lunchStartRelMin && currentRelMin < lunchEndRelMin) {
-                    currentRelMin = lunchEndRelMin;
-                    let realHour = Math.floor(lunchEndRelMin / 60) % 24;
-                    currentPointer.setHours(realHour, lunchEndRelMin % 60, 0, 0);
-                }
-
-                // Calculate available working minutes in this block
-                let nextBoundary = endRelMin;
-                if (hasLunch && currentRelMin < lunchStartRelMin) {
-                    nextBoundary = lunchStartRelMin;
-                }
-
-                let availableMins = nextBoundary - currentRelMin;
-                let minsToWork = Math.min(totalMinutesRemaining, availableMins);
-
-                // Record work block
-                const shiftLabel = activeShift === 'night' ? 'Night Shift' : 'Day Shift';
-                const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(currentPointer);
-                const dateFormatted = `${dayName}, ${currentPointer.getDate()} ${new Intl.DateTimeFormat('en-US', { month: 'short' }).format(currentPointer)} ${currentPointer.getFullYear()}`;
-
-                breakdown.push({
-                    text: `${dateFormatted} (${shiftLabel}): Worked ${formatHours(minsToWork / 60)}`
-                });
-
-                totalMinutesRemaining -= minsToWork;
-                currentRelMin += minsToWork;
-
-                // Update currentPointer
-                let realHour = Math.floor(currentRelMin / 60) % 24;
-                let realMin = currentRelMin % 60;
-                if (currentRelMin >= 24 * 60) {
-                    if (currentPointer.getHours() >= 16) {
-                        currentPointer.setDate(currentPointer.getDate() + 1);
-                    }
-                }
-                currentPointer.setHours(realHour, realMin, 0, 0);
+            } else {
+                span.classList.remove('hidden');
+                const spinner = button.querySelector('.spinner');
+                if (spinner) spinner.remove();
             }
-
-            return {
-                inTime: new Date(`${startDateStr}T${startTimeStr}:00`),
-                outTime: currentPointer,
-                roundedOutTime: roundToNearestQuarterHour(currentPointer),
-                breakdown: breakdown,
-                assignedHours: assignedHours
-            };
-        }
-
-        // --- FORM SUBMISSION & EVENT HANDLERS ---
-        ui.form.addEventListener('submit', (e) => {
-            e.preventDefault();
-
-            const hours = parseInt(ui.assignedHoursInput.value) || 0;
-            const minutes = parseInt(ui.assignedMinutesInput.value) || 0;
-            const assignedHours = hours + (minutes / 60);
-
-            if (assignedHours <= 0) {
-                showMessage("Please enter valid assigned time.");
-                return;
-            }
-
-            const holidays = ui.holidaysInput.value ? ui.holidaysInput.value.split(',') : [];
-
-            currentCalculationResult = calculateJobCard(
-                assignedHours,
-                ui.shiftSelect.value,
-                ui.dateIn.value,
-                ui.timeIn.value,
-                holidays,
-                ui.shiftChangeDateInput.value,
-                ui.shiftChangeSelect.value
-            );
-
-            // Display Results
-            ui.outIncentiveHours.textContent = formatHours(assignedHours);
-            ui.outInTime.textContent = formatDateTime(currentCalculationResult.inTime);
-            ui.outOutTime.textContent = formatDateTime(currentCalculationResult.outTime);
-            ui.outRoundedOutTime.textContent = formatDateTime(currentCalculationResult.roundedOutTime);
-
-            ui.workBreakdownList.innerHTML = currentCalculationResult.breakdown
-                .map(item => `<li>${item.text}</li>`).join('');
-
-            ui.resultDiv.classList.remove('hidden');
-        });
-
-        ui.clearBtn.addEventListener('click', () => {
-            ui.form.reset();
-            ui.resultDiv.classList.add('hidden');
-            currentCalculationResult = null;
-        });
-
-        // LocalStorage Logic
-        function loadJobCards() {
-            const cards = JSON.parse(localStorage.getItem('jobCards')) || [];
-            ui.savedJobCardsContainer.innerHTML = cards.length === 0 
-                ? `<p class="text-center text-gray-500 py-4">No Saved Cards</p>`
-                : cards.map((card, i) => `
-                    <div class="bg-gray-50 p-4 rounded-lg border flex justify-between items-center">
-                        <div>
-                            <h4 class="font-bold">Job Card #${i + 1}</h4>
-                            <p class="text-sm">In: ${formatDateTime(new Date(card.inTime))}</p>
-                            <p class="text-sm">Out: ${formatDateTime(new Date(card.roundedOutTime))}</p>
-                        </div>
-                        <button onclick="deleteCard(${i})" class="text-red-500 hover:text-red-700 font-bold">Delete</button>
-                    </div>
-                `).join('');
-        }
-
-        ui.saveBtn.addEventListener('click', () => {
-            if (!currentCalculationResult) return;
-            const cards = JSON.parse(localStorage.getItem('jobCards')) || [];
-            cards.push(currentCalculationResult);
-            localStorage.setItem('jobCards', JSON.stringify(cards));
-            loadJobCards();
-            showMessage("Job card saved successfully!", false);
-        });
-
-        window.deleteCard = (index) => {
-            const cards = JSON.parse(localStorage.getItem('jobCards')) || [];
-            cards.splice(index, 1);
-            localStorage.setItem('jobCards', JSON.stringify(cards));
-            loadJobCards();
         };
 
-        ui.exportBtn.addEventListener('click', () => {
-            const cards = JSON.parse(localStorage.getItem('jobCards')) || [];
-            if (!cards.length) return showMessage("No data to export.");
+        // --- LOCAL STORAGE & EXPORT FUNCTIONS ---
 
-            let csv = "Sr. No.,Assigned Hours,Start Time,Rounded Out Time\n";
-            cards.forEach((c, i) => {
-                csv += `${i + 1},${c.assignedHours},"${formatDateTime(new Date(c.inTime))}","${formatDateTime(new Date(c.roundedOutTime))}"\n`;
+        function loadJobCardsFromLocalStorage() {
+            try {
+                const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+                renderSavedJobCards(storedCards);
+            } catch (error) {
+                showMessage(`Failed to load job cards from local storage: ${error.message}`);
+                console.error("Local Storage error:", error);
+            }
+        }
+
+        function saveJobCardToLocalStorage(card) {
+            try {
+                const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+                storedCards.push(card);
+                localStorage.setItem('jobCards', JSON.stringify(storedCards));
+                loadJobCardsFromLocalStorage(); // Reload and render cards
+                showMessage('Job card saved successfully!', false);
+            } catch (error) {
+                showMessage(`Failed to save job card to local storage: ${error.message}`);
+                console.error("Local Storage error:", error);
+            }
+        }
+
+        function deleteJobCardFromLocalStorage(index) {
+            try {
+                const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+                if (index > -1) {
+                    storedCards.splice(index, 1);
+                    localStorage.setItem('jobCards', JSON.stringify(storedCards));
+                    loadJobCardsFromLocalStorage(); // Reload and render cards
+                    showMessage('Job card deleted!', false);
+                }
+            } catch (error) {
+                showMessage(`Failed to delete job card: ${error.message}`);
+                console.error("Local Storage error:", error);
+            }
+        }
+
+        function exportDataToCSV() {
+            try {
+                const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+                if (storedCards.length === 0) {
+                    showMessage("No job cards to export.", true);
+                    return;
+                }
+
+                // Create the CSV header with new, descriptive names
+                const header = ["Sr. No.", "Assigned Hours", "Time to Fill", "Start Date and Time", "Rounded End Date and Time"];
+                const rows = [header.join(",")];
+
+                // Format data rows with serial number and specific fields
+                storedCards.forEach((card, index) => {
+                    const row = [
+                        index + 1, // Sr. No.
+                        card.assignedHours,
+                        card.incentiveHours,
+                        new Date(card.inTime).toLocaleString(),
+                        new Date(card.roundedOutTime).toLocaleString() // Exporting roundedOutTime here
+                    ];
+                    rows.push(row.join(","));
+                });
+
+                // Convert rows to a CSV string
+                const csvContent = rows.join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "job_cards.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showMessage("Data exported to job_cards.csv!", false);
+            } catch (error) {
+                showMessage(`Export failed: ${error.message}`, true);
+                console.error("Export error:", error);
+            }
+        }
+
+        function renderSavedJobCards(cards) {
+            const totalCards = cards.length;
+
+            ui.savedJobCardsContainer.innerHTML = totalCards === 0
+                ? `<div class="text-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
+                       <h3 class="text-lg font-medium text-gray-800">No Saved Cards</h3>
+                       <p class="mt-1 text-sm text-gray-500">Calculate and save a job card to see it here.</p>
+                   </div>`
+                : cards.map((card, index) => {
+                    const serialNumber = index + 1;
+                    const outTimeToShow = card.roundedOutTime || card.outTime;
+                    const outTimeLabel = card.roundedOutTime ? 'Rounded Out' : 'Optimal Out';
+
+                    return `
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative group">
+                            <button class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" data-index="${index}" title="Delete Card">&times;</button>
+                            <h3 class="font-bold text-gray-800 mb-2">Job Card #${serialNumber}</h3>
+                            <p class="text-sm"><strong class="font-medium text-gray-600">Assigned:</strong> ${formatHours(card.assignedHours)}</p>
+                            <p class="text-sm"><strong class="font-medium text-gray-600">Start:</strong> ${formatDateTime(new Date(card.inTime))}</p>
+                            <p class="text-sm"><strong class="font-medium text-gray-600">${outTimeLabel}:</strong> ${formatDateTime(new Date(outTimeToShow))}</p>
+                        </div>
+                    `;
+                }).join('');
+
+            ui.savedJobCardsContainer.querySelectorAll('button[data-index]').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const cardIndex = e.currentTarget.getAttribute('data-index');
+                    deleteJobCardFromLocalStorage(cardIndex);
+                });
             });
+        }
 
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'job_cards.csv';
-            a.click();
-        });
-
-        loadJobCards();
-    </script>
-</body>
-</html>
+        // --
