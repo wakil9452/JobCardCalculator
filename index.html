@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Card Time Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS Library for Exporting Native XLSX Excel Files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,12 +16,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
+                    .then(registration => console.log('ServiceWorker registered:', registration.scope))
+                    .catch(err => console.log('ServiceWorker registration failed:', err));
             });
         }
     </script>
@@ -63,6 +61,14 @@
 
         <form id="jobCardForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+            <!-- STAFF NUMBER -->
+            <div class="md:col-span-2">
+                <label for="staffNoInput" class="block text-sm font-medium text-gray-700">
+                    Staff Number
+                </label>
+                <input type="text" id="staffNoInput" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 51200019883" required>
+            </div>
+
             <!-- ASSIGNED TIME -->
             <div class="md:col-span-2 space-y-4">
                 <label class="block text-sm font-medium text-gray-700">Assigned Time</label>
@@ -97,14 +103,27 @@
                 </div>
             </div>
 
-            <!-- HOLIDAYS -->
-            <div class="md:col-span-2">
-                <label for="holidays" class="block text-sm font-medium text-gray-700">National Holidays (YYYY-MM-DD, comma-separated)</label>
-                <input type="text" id="holidays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 2026-08-15, 2026-10-02">
+            <!-- HOLIDAYS / LEAVE (DATE PICKER + DD-MM-YYYY) -->
+            <div class="md:col-span-2 space-y-2">
+                <label class="block text-sm font-medium text-gray-700">
+                    Holidays / Leave Days (DD-MM-YYYY)
+                </label>
+                
+                <div class="flex gap-2 items-center">
+                    <input type="date" id="holidayPicker" class="rounded-md border-gray-300 shadow-sm p-2 border">
+                    <button type="button" id="addHolidayBtn" class="bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium">
+                        + Add Date
+                    </button>
+                </div>
+
+                <div id="holidayChips" class="flex flex-wrap gap-2 pt-1"></div>
+
+                <input type="text" id="holidays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border text-sm" placeholder="Manual entry optional e.g., 15-08-2026, 02-10-2026">
+                <span class="text-xs text-gray-500">Aap Date Picker se select kar sakte hain ya DD-MM-YYYY format mein comma dekar likh sakte hain.</span>
             </div>
 
             <!-- SHIFT CHANGE -->
-            <div class="md:col-span-2 mt-4 border-t pt-4 border-gray-200">
+            <div class="md:col-span-2 mt-2 border-t pt-4 border-gray-200">
                 <h3 class="text-lg font-medium text-gray-700 mb-2">Optional: Shift Change</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -137,6 +156,7 @@
         <div id="result" class="mt-8 p-6 bg-indigo-50 rounded-lg border border-indigo-200 hidden">
             <h2 class="text-xl font-semibold text-indigo-800 mb-4">Calculated Job Card Data</h2>
             <div class="space-y-3 text-indigo-700">
+                <p><strong>Staff No:</strong> <span id="out_staffNo" class="font-bold"></span></p>
                 <p><strong>Actual Hours to Fill:</strong> <span id="out_incentiveHours" class="font-bold"></span></p>
                 <p><strong>Start Date & Time:</strong> <span id="out_inTime" class="font-bold"></span></p>
             </div>
@@ -159,8 +179,8 @@
         <div class="mt-10">
             <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Saved Job Cards</h2>
             <div id="savedJobCards" class="space-y-4"></div>
-            <button id="exportBtn" class="mt-4 w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl shadow-lg hover:bg-blue-700 transition duration-300">
-                Export Data to CSV
+            <button id="exportBtn" class="mt-4 w-full bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-300 flex items-center justify-center gap-2">
+                <span>Export Data to Excel (.xlsx)</span>
             </button>
         </div>
 
@@ -190,14 +210,20 @@ const SHIFT_CONFIG = {
 };
 
 let currentCalculationResult = null;
+let selectedHolidays = new Set();
 
 const ui = {
     form: document.getElementById('jobCardForm'),
+    staffNoInput: document.getElementById('staffNoInput'),
     assignedHoursInput: document.getElementById('assignedHoursInput'),
     assignedMinutesInput: document.getElementById('assignedMinutesInput'),
     dateIn: document.getElementById('dateIn'),
     shiftChangeDateInput: document.getElementById('shiftChangeDate'),
     shiftChangeSelect: document.getElementById('shiftChange'),
+    holidayPicker: document.getElementById('holidayPicker'),
+    addHolidayBtn: document.getElementById('addHolidayBtn'),
+    holidayChips: document.getElementById('holidayChips'),
+    holidaysInput: document.getElementById('holidays'),
     resultDiv: document.getElementById('result'),
     workBreakdownList: document.getElementById('workBreakdown'),
     savedJobCardsContainer: document.getElementById('savedJobCards'),
@@ -219,21 +245,63 @@ const showMessage = (message, isError = true) => {
     ui.closeMessageBtn.className = isError ? 'bg-red-500 text-white px-4 py-2 rounded-lg' : 'bg-green-500 text-white px-4 py-2 rounded-lg';
 };
 
+const convertIndianDateToISO = (dateStr) => {
+    const trimmed = dateStr.trim();
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parts = trimmed.split('-');
+    if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    return null;
+};
+
+const convertISOToIndianDate = (isoStr) => {
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return isoStr;
+};
+
+// Serial Number Format: [STAFF NO-DD OF START DATE-DD OF OUT DATE- MM-SERIAL NUMBER]
+const generateCustomSerialNo = (staffNo, inTimeISO, outTimeISO, indexSequence) => {
+    const startDate = new Date(inTimeISO);
+    const endDate = new Date(outTimeISO);
+
+    const staff = staffNo || 'NA';
+    const startDD = String(startDate.getDate()).padStart(2, '0');
+    const outDD = String(endDate.getDate()).padStart(2, '0');
+    const monthMM = String(startDate.getMonth() + 1).padStart(2, '0');
+    const seq = String(indexSequence + 1).padStart(3, '0');
+
+    return `${staff}-${startDD}-${outDD}-${monthMM}-${seq}`;
+};
+
+const renderHolidayChips = () => {
+    ui.holidayChips.innerHTML = Array.from(selectedHolidays).map(isoDate => `
+        <span class="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">
+            ${convertISOToIndianDate(isoDate)}
+            <button type="button" onclick="removeHoliday('${isoDate}')" class="text-indigo-600 hover:text-red-600 font-bold ml-1">&times;</button>
+        </span>
+    `).join('');
+};
+
+window.removeHoliday = (isoDate) => {
+    selectedHolidays.delete(isoDate);
+    renderHolidayChips();
+};
+
 const roundToNearestQuarterHour = (date) => {
     const newDate = new Date(date.getTime());
     const minutes = newDate.getMinutes();
 
-    if (minutes <= 7) {
-        newDate.setMinutes(0, 0, 0);
-    } else if (minutes <= 22) {
-        newDate.setMinutes(15, 0, 0);
-    } else if (minutes <= 37) {
-        newDate.setMinutes(30, 0, 0);
-    } else if (minutes <= 52) {
-        newDate.setMinutes(45, 0, 0);
-    } else {
-        newDate.setHours(newDate.getHours() + 1, 0, 0, 0);
-    }
+    if (minutes <= 7) newDate.setMinutes(0, 0, 0);
+    else if (minutes <= 22) newDate.setMinutes(15, 0, 0);
+    else if (minutes <= 37) newDate.setMinutes(30, 0, 0);
+    else if (minutes <= 52) newDate.setMinutes(45, 0, 0);
+    else newDate.setHours(newDate.getHours() + 1, 0, 0, 0);
+
     return newDate;
 };
 
@@ -293,8 +361,8 @@ const getDutyDate = (dateTime) => {
 const isDutyDateOff = (dutyDate, holidays) => {
     const day = dutyDate.getDay();
     const dateKey = formatDateKey(dutyDate);
-    if (day === 0) return true; // Sunday
-    if (holidays.has(dateKey)) return true; // Holiday
+    if (day === 0) return true;
+    if (holidays.has(dateKey)) return true;
     return false;
 };
 
@@ -352,7 +420,7 @@ function calculateCompletionTime({ totalHours, startTime, holidays, initialShift
 
         if (isDutyDateOff(dutyDate, holidays)) {
             workBreakdown.push(
-                `${dutyDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}: Duty Off`
+                `${dutyDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}: Duty Off / Leave`
             );
             currentDateTime = getNextDutyDateStart(dutyDate);
             continue;
@@ -429,7 +497,8 @@ function deleteJobCardFromLocalStorage(index) {
     }
 }
 
-function exportDataToCSV() {
+// EXPORT TO NATIVE EXCEL (.xlsx)
+function exportDataToExcel() {
     try {
         const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
         if (storedCards.length === 0) {
@@ -437,32 +506,44 @@ function exportDataToCSV() {
             return;
         }
 
-        const header = ['Sr. No.', 'Assigned Hours', 'Actual Hours to Fill', 'Start Date and Time', 'Rounded Out Date and Time'];
-        const rows = [header.join(',')];
+        if (typeof XLSX === 'undefined') {
+            showMessage('Excel Library missing. Internet connection required on first load.');
+            return;
+        }
 
-        storedCards.forEach((card, index) => {
-            const row = [
-                index + 1,
-                card.assignedHours,
-                card.incentiveHours,
-                new Date(card.inTime).toLocaleString(),
-                new Date(card.roundedOutTime).toLocaleString()
-            ];
-            rows.push(row.join(','));
+        const excelData = storedCards.map((card, index) => {
+            const outTimeToShow = card.roundedOutTime || card.outTime;
+            const customSerial = generateCustomSerialNo(card.staffNo, card.inTime, outTimeToShow, index);
+            
+            return {
+                "Serial No.": customSerial,
+                "Staff No.": card.staffNo || 'N/A',
+                "Assigned Hours": formatHours(card.assignedHours),
+                "Actual Hours (2/3)": formatHours(card.incentiveHours),
+                "Start Date & Time": new Date(card.inTime).toLocaleString('en-GB'),
+                "Rounded Out Date & Time": new Date(outTimeToShow).toLocaleString('en-GB')
+            };
         });
 
-        const csvContent = rows.join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'job_cards.csv');
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showMessage('Data exported to job_cards.csv!', false);
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        
+        // Auto-fit column widths
+        const colWidths = [
+            { wch: 30 }, // Serial No.
+            { wch: 18 }, // Staff No.
+            { wch: 18 }, // Assigned
+            { wch: 20 }, // Actual
+            { wch: 24 }, // Start
+            { wch: 24 }  // Out
+        ];
+        worksheet['!cols'] = colWidths;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Job Cards");
+
+        XLSX.writeFile(workbook, "Job_Cards_Data.xlsx");
+        showMessage('Data exported to Job_Cards_Data.xlsx successfully!', false);
+
     } catch (error) {
         showMessage(`Export failed: ${error.message}`);
     }
@@ -477,10 +558,13 @@ function renderSavedJobCards(cards) {
         : cards.map((card, index) => {
             const outTimeToShow = card.roundedOutTime || card.outTime;
             const outTimeLabel = card.roundedOutTime ? 'Rounded Out' : 'Optimal Out';
+            const customSerial = generateCustomSerialNo(card.staffNo, card.inTime, outTimeToShow, index);
+
             return `
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative group">
                     <button class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" data-index="${index}" title="Delete Card">&times;</button>
-                    <h3 class="font-bold text-gray-800 mb-2">Job Card #${index + 1}</h3>
+                    <h3 class="font-bold text-gray-800 mb-1 text-base">Serial No: <span class="text-indigo-600">${customSerial}</span></h3>
+                    <p class="text-sm"><strong class="font-medium text-gray-600">Staff No:</strong> ${card.staffNo || 'N/A'}</p>
                     <p class="text-sm"><strong class="font-medium text-gray-600">Assigned:</strong> ${formatHours(card.assignedHours)}</p>
                     <p class="text-sm"><strong class="font-medium text-gray-600">Start:</strong> ${formatDateTime(new Date(card.inTime))}</p>
                     <p class="text-sm"><strong class="font-medium text-gray-600">${outTimeLabel}:</strong> ${formatDateTime(new Date(outTimeToShow))}</p>
@@ -500,6 +584,12 @@ const handleFormSubmit = (e) => {
     setButtonLoading(ui.calculateBtn, true);
 
     try {
+        const staffNo = ui.staffNoInput.value.trim();
+        if (!staffNo) {
+            showMessage('Please enter Staff Number.');
+            return;
+        }
+
         const assignedHours = parseInt(ui.assignedHoursInput.value) || 0;
         const assignedMinutes = parseInt(ui.assignedMinutesInput.value) || 0;
         const totalAssignedTime = assignedHours + (assignedMinutes / 60);
@@ -524,8 +614,14 @@ const handleFormSubmit = (e) => {
             return;
         }
 
-        const holidayText = document.getElementById('holidays').value;
-        const holidays = new Set(holidayText.split(',').map(s => s.trim()).filter(Boolean));
+        const holidays = new Set(selectedHolidays);
+        const manualText = ui.holidaysInput.value;
+        if (manualText) {
+            manualText.split(',').forEach(s => {
+                const isoDate = convertIndianDateToISO(s);
+                if (isoDate) holidays.add(isoDate);
+            });
+        }
 
         const shiftChangeDate = ui.shiftChangeDateInput.value || null;
         const newShift = ui.shiftChangeSelect.value || null;
@@ -545,6 +641,7 @@ const handleFormSubmit = (e) => {
 
         currentCalculationResult = {
             id: Date.now(),
+            staffNo: staffNo,
             assignedHours: totalAssignedTime,
             inTime: startTime.toISOString(),
             outTime: finalTime.toISOString(),
@@ -554,6 +651,7 @@ const handleFormSubmit = (e) => {
             createdAt: new Date().toISOString()
         };
 
+        document.getElementById('out_staffNo').textContent = staffNo || 'N/A';
         document.getElementById('out_incentiveHours').textContent = formatHours(incentiveHours);
         document.getElementById('out_inTime').textContent = formatDateTime(startTime);
         document.getElementById('out_outTime').textContent = formatDateTime(finalTime);
@@ -583,6 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.dateIn.valueAsDate = new Date();
     loadJobCardsFromLocalStorage();
 
+    ui.addHolidayBtn.addEventListener('click', () => {
+        const val = ui.holidayPicker.value;
+        if (val) {
+            selectedHolidays.add(val);
+            renderHolidayChips();
+            ui.holidayPicker.value = '';
+        }
+    });
+
     ui.closeMessageBtn.addEventListener('click', () => {
         ui.messageBox.classList.add('hidden');
     });
@@ -590,13 +697,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.clearBtn.addEventListener('click', () => {
         ui.form.reset();
         ui.dateIn.valueAsDate = new Date();
+        selectedHolidays.clear();
+        renderHolidayChips();
         ui.resultDiv.classList.add('hidden');
         currentCalculationResult = null;
     });
 
     ui.form.addEventListener('submit', handleFormSubmit);
     ui.saveBtn.addEventListener('click', handleSave);
-    ui.exportBtn.addEventListener('click', exportDataToCSV);
+    ui.exportBtn.addEventListener('click', exportDataToExcel);
 });
 </script>
 
