@@ -902,6 +902,66 @@ const isDutyDateOff = (
     return false;
 };
 
+/* =========================================
+   READ NATIONAL HOLIDAYS
+
+   Picker + Manual Entry
+   Indian format: DD-MM-YYYY
+   Internal format: YYYY-MM-DD
+   ========================================= */
+
+const holidayText =
+    document.getElementById(
+        'holidays'
+    ).value;
+
+
+const holidays =
+    new Set();
+
+
+/* Manual dates */
+
+holidayText
+    .split(',')
+    .map(
+        s => s.trim()
+    )
+    .filter(
+        Boolean
+    )
+    .forEach(
+        dateString => {
+
+            const isoDate =
+                convertIndianDateToISO(
+                    dateString
+                );
+
+
+            if (isoDate) {
+
+                holidays.add(
+                    isoDate
+                );
+
+            }
+
+        }
+    );
+
+
+/* Picker dates */
+
+selectedHolidays.forEach(
+    isoDate => {
+
+        holidays.add(
+            isoDate
+        );
+
+    }
+);
 
 /* =========================================================
    NEXT DUTY DATE
