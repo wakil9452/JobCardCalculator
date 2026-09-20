@@ -3,520 +3,602 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job Card Time Calculator & Excel Generator - BLW</title>
-    <!-- Tailwind CSS -->
+    <title>Job Card Time Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Flatpickr CSS & JS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <!-- SheetJS for Excel Download -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .container { max-width: 800px; }
+        #messageBox { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
 
-    <div class="bg-white shadow-2xl rounded-2xl p-6 w-full max-w-4xl">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-1">Job Card Time Calculator</h1>
-        <p class="text-center bg-orange-200 text-indigo-900 font-semibold py-1 rounded mb-6 text-sm">
-            Heavy Machine Shop, BLW Varanasi
-        </p>
+<body class="bg-gray-100 flex flex-col items-center min-h-screen p-4">
 
-        <!-- User/Staff Info Form -->
-        <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Staff Number</label>
-                <input type="text" id="staffNo" value="13038" class="w-full p-2 border rounded font-semibold text-gray-800 bg-white">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Month (MM)</label>
-                <input type="text" id="jobMonth" value="09" maxlength="2" class="w-full p-2 border rounded font-semibold text-gray-800 bg-white">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Year (YY)</label>
-                <input type="text" id="jobYear" value="26" maxlength="2" class="w-full p-2 border rounded font-semibold text-gray-800 bg-white">
-            </div>
+    <div class="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 w-full container">
+
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">
+            Job Card Time Calculator
+        </h1>
+
+        <div class="bg-orange-100 py-2 px-4 rounded-lg mb-6 text-center">
+            <p class="font-semibold text-indigo-800">
+                Heavy Machine Shop, BLW Varanasi UP 221004
+            </p>
         </div>
 
-        <form id="jobForm" class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium">Assigned Hours</label>
-                    <input type="number" id="assignedHours" value="155" min="0" class="w-full p-2 border rounded" required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">Assigned Minutes</label>
-                    <input type="number" id="assignedMinutes" value="0" min="0" max="59" class="w-full p-2 border rounded" required>
+        <form id="jobCardForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- ASSIGNED TIME -->
+            <div class="md:col-span-2 space-y-4">
+                <label class="block text-sm font-medium text-gray-700">Assigned Time</label>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label for="assignedHoursInput" class="block text-xs font-medium text-gray-500">Hours</label>
+                        <input type="number" id="assignedHoursInput" step="1" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 15" required>
+                    </div>
+                    <div class="flex-1">
+                        <label for="assignedMinutesInput" class="block text-xs font-medium text-gray-500">Minutes</label>
+                        <input type="number" id="assignedMinutesInput" step="1" min="0" max="59" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 30" required>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-4">
+            <!-- INITIAL SHIFT / DATE / TIME -->
+            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                    <label class="block text-sm font-medium">Initial Shift</label>
-                    <select id="shift" class="w-full p-2 border rounded">
-                        <option value="night">Night Shift</option>
-                        <option value="day">Day Shift</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">Start Date (DD-MM-YYYY)</label>
-                    <input type="text" id="dateIn" class="w-full p-2 border rounded bg-white" placeholder="Select Start Date" required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">Start Time</label>
-                    <input type="time" id="timeIn" value="00:10" class="w-full p-2 border rounded" required>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium">Holidays / Leave (Multi-Select Dates)</label>
-                <input type="text" id="holidays" class="w-full p-2 border rounded bg-white" placeholder="Select Holidays / Leaves">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 border-t pt-2">
-                <div>
-                    <label class="block text-sm font-medium">Shift Change Date (Optional)</label>
-                    <input type="text" id="shiftChangeDate" class="w-full p-2 border rounded bg-white" placeholder="Select Date">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">New Shift</label>
-                    <select id="shiftChange" class="w-full p-2 border rounded">
+                    <label for="shift" class="block text-sm font-medium text-gray-700">Initial Shift</label>
+                    <select id="shift" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" required>
                         <option value="day">Day Shift</option>
                         <option value="night">Night Shift</option>
                     </select>
                 </div>
+                <div>
+                    <label for="dateIn" class="block text-sm font-medium text-gray-700">Start Date</label>
+                    <input type="date" id="dateIn" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" required>
+                </div>
+                <div>
+                    <label for="timeIn" class="block text-sm font-medium text-gray-700">Start Time</label>
+                    <input type="time" id="timeIn" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" required>
+                </div>
             </div>
 
-            <div class="flex gap-4">
-                <button type="submit" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition">
-                    Calculate & View Breakdown
+            <!-- HOLIDAYS -->
+            <div class="md:col-span-2">
+                <label for="holidays" class="block text-sm font-medium text-gray-700">National Holidays (YYYY-MM-DD, comma-separated)</label>
+                <input type="text" id="holidays" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., 2026-08-15, 2026-10-02">
+            </div>
+
+            <!-- SHIFT CHANGE -->
+            <div class="md:col-span-2 mt-4 border-t pt-4 border-gray-200">
+                <h3 class="text-lg font-medium text-gray-700 mb-2">Optional: Shift Change</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="shiftChangeDate" class="block text-sm font-medium text-gray-500">Change Date</label>
+                        <input type="date" id="shiftChangeDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="shiftChange" class="block text-sm font-medium text-gray-500">New Shift</label>
+                        <select id="shiftChange" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                            <option value="">No Change</option>
+                            <option value="day">Day Shift</option>
+                            <option value="night">Night Shift</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BUTTONS -->
+            <div class="md:col-span-2 mt-4 flex flex-col sm:flex-row gap-4">
+                <button type="submit" id="calculateBtn" class="flex-1 bg-indigo-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-indigo-700 transition duration-300 flex items-center justify-center">
+                    <span>Calculate 'Out' Times</span>
+                </button>
+                <button type="button" id="clearBtn" class="flex-1 bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-xl shadow-lg hover:bg-gray-400 transition duration-300">
+                    Clear Form
                 </button>
             </div>
         </form>
 
-        <!-- Result Box -->
-        <div id="result" class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg hidden space-y-3">
-            <div class="flex justify-between items-center border-b pb-2">
-                <span class="text-xs font-bold text-gray-500 uppercase">Generated Serial No:</span>
-                <span id="cardSerialText" class="text-sm font-extrabold text-indigo-900 bg-indigo-100 px-3 py-1 rounded-full"></span>
+        <!-- RESULT -->
+        <div id="result" class="mt-8 p-6 bg-indigo-50 rounded-lg border border-indigo-200 hidden">
+            <h2 class="text-xl font-semibold text-indigo-800 mb-4">Calculated Job Card Data</h2>
+            <div class="space-y-3 text-indigo-700">
+                <p><strong>Actual Hours to Fill:</strong> <span id="out_incentiveHours" class="font-bold"></span></p>
+                <p><strong>Start Date & Time:</strong> <span id="out_inTime" class="font-bold"></span></p>
             </div>
-            <p><strong>Actual Hours to Fill (2/3):</strong> <span id="actualHoursText" class="font-bold text-indigo-900"></span></p>
-            <p><strong>Start Date & Time:</strong> <span id="inTimeText"></span></p>
-            <div>
-                <h3 class="font-bold mb-1">Work Schedule Breakdown:</h3>
-                <ul id="breakdownList" class="list-disc list-inside text-sm text-gray-700 max-h-60 overflow-y-auto bg-white p-2 border rounded font-mono"></ul>
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold text-indigo-800 mb-2">Work Schedule Breakdown:</h3>
+                <ul id="workBreakdown" class="space-y-2 text-sm text-gray-700 list-disc list-inside max-h-64 overflow-y-auto pr-2"></ul>
             </div>
-            <p class="text-center font-bold text-lg text-indigo-900 pt-2 border-t">
-                Optimal Out Time: <span id="outTimeText"></span>
-            </p>
+            <div class="mt-6 border-t pt-4 border-indigo-200 text-center">
+                <p class="text-sm">Optimal Out Time: <strong id="out_outTime" class="block text-indigo-900 text-lg"></strong></p>
+                <p class="text-sm mt-2">Rounded Out Time: <strong id="out_roundedOutTime" class="block text-green-700 text-lg"></strong></p>
+            </div>
+            <div class="mt-4">
+                <button id="saveBtn" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-xl shadow-lg hover:bg-green-700 transition duration-300 flex items-center justify-center">
+                    <span>Save This Job Card</span>
+                </button>
+            </div>
+        </div>
 
-            <button id="addCardBtn" class="w-full bg-green-600 text-white font-bold py-2 rounded-lg hover:bg-green-700 transition mt-2">
-                + Add This Job Card To Monthly List
+        <!-- SAVED CARDS -->
+        <div class="mt-10">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">Saved Job Cards</h2>
+            <div id="savedJobCards" class="space-y-4"></div>
+            <button id="exportBtn" class="mt-4 w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl shadow-lg hover:bg-blue-700 transition duration-300">
+                Export Data to CSV
             </button>
         </div>
 
-        <!-- Saved Job Cards Table & Export Section -->
-        <div id="savedCardsSection" class="mt-8 border-t pt-6 hidden">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-800">Saved Job Cards for Monthly Export (<span id="cardCount">0</span>)</h2>
-                <button id="exportExcelBtn" class="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
-                    📊 Export All Job Cards to Excel (.xlsx)
-                </button>
-            </div>
-            <div class="overflow-x-auto bg-white border rounded-lg">
-                <table class="w-full text-xs text-left text-gray-600">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b">
-                        <tr>
-                            <th class="py-2 px-3">Serial No</th>
-                            <th class="py-2 px-3">Assigned Time</th>
-                            <th class="py-2 px-3">Actual (2/3)</th>
-                            <th class="py-2 px-3">Start Time</th>
-                            <th class="py-2 px-3">Out Time</th>
-                            <th class="py-2 px-3">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cardsTableBody"></tbody>
-                </table>
+        <!-- MESSAGE BOX -->
+        <div id="messageBox" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+                <h3 id="messageTitle" class="text-lg font-bold mb-2"></h3>
+                <p id="messageText" class="text-gray-700 mb-4"></p>
+                <div class="flex justify-end">
+                    <button id="closeMessage" class="text-white px-4 py-2 rounded-lg">OK</button>
+                </div>
             </div>
         </div>
 
     </div>
 
-    <script>
-        let dateInPicker, shiftChangePicker, holidaysPicker;
-        let jobCardsList = [];
-        let currentCalculatedCard = null;
+<script>
+const SHIFT_CONFIG = {
+    day: {
+        weekday: { start: [6, 30], end: [16, 0], break: { start: [11, 30], end: [12, 30] } },
+        saturday: { start: [6, 30], end: [12, 0], break: null }
+    },
+    night: {
+        weekday: { start: [16, 0], end: [1, 30], break: { start: [21, 0], end: [22, 0] } },
+        saturday: { start: [12, 0], end: [17, 30], break: null }
+    }
+};
 
-        document.addEventListener("DOMContentLoaded", function () {
-            dateInPicker = flatpickr("#dateIn", {
-                dateFormat: "d-m-Y",
-                defaultDate: "08-09-2026"
-            });
+let currentCalculationResult = null;
 
-            shiftChangePicker = flatpickr("#shiftChangeDate", {
-                dateFormat: "d-m-Y",
-                defaultDate: "22-09-2026"
-            });
+const ui = {
+    form: document.getElementById('jobCardForm'),
+    assignedHoursInput: document.getElementById('assignedHoursInput'),
+    assignedMinutesInput: document.getElementById('assignedMinutesInput'),
+    dateIn: document.getElementById('dateIn'),
+    shiftChangeDateInput: document.getElementById('shiftChangeDate'),
+    shiftChangeSelect: document.getElementById('shiftChange'),
+    resultDiv: document.getElementById('result'),
+    workBreakdownList: document.getElementById('workBreakdown'),
+    savedJobCardsContainer: document.getElementById('savedJobCards'),
+    calculateBtn: document.getElementById('calculateBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    messageBox: document.getElementById('messageBox'),
+    messageTitle: document.getElementById('messageTitle'),
+    messageText: document.getElementById('messageText'),
+    closeMessageBtn: document.getElementById('closeMessage')
+};
 
-            holidaysPicker = flatpickr("#holidays", {
-                mode: "multiple",
-                dateFormat: "d-m-Y",
-                defaultDate: ["17-09-2026", "18-09-2026"]
-            });
+const showMessage = (message, isError = true) => {
+    ui.messageTitle.textContent = isError ? 'Error' : 'Success';
+    ui.messageTitle.className = isError ? 'text-lg font-bold text-red-600 mb-2' : 'text-lg font-bold text-green-600 mb-2';
+    ui.messageText.textContent = message;
+    ui.messageBox.classList.remove('hidden');
+    ui.closeMessageBtn.className = isError ? 'bg-red-500 text-white px-4 py-2 rounded-lg' : 'bg-green-500 text-white px-4 py-2 rounded-lg';
+};
+
+const roundToNearestQuarterHour = (date) => {
+    const newDate = new Date(date.getTime());
+    const minutes = newDate.getMinutes();
+
+    if (minutes <= 7) {
+        newDate.setMinutes(0, 0, 0);
+    } else if (minutes <= 22) {
+        newDate.setMinutes(15, 0, 0);
+    } else if (minutes <= 37) {
+        newDate.setMinutes(30, 0, 0);
+    } else if (minutes <= 52) {
+        newDate.setMinutes(45, 0, 0);
+    } else {
+        newDate.setHours(newDate.getHours() + 1, 0, 0, 0);
+    }
+    return newDate;
+};
+
+const formatHours = (decimalHours) => {
+    if (decimalHours <= 0) return '0 minutes';
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+
+    return [
+        hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : '',
+        minutes > 0 ? `${minutes} minute${minutes > 1 ? 's' : ''}` : ''
+    ].filter(Boolean).join(' and ');
+};
+
+const formatDateTime = (date) => {
+    return new Intl.DateTimeFormat('en-GB', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+        hour12: false
+    }).format(date).replace(' at ', ', ');
+};
+
+const setButtonLoading = (button, isLoading) => {
+    button.disabled = isLoading;
+    const span = button.querySelector('span');
+
+    if (isLoading) {
+        if (span) span.classList.add('hidden');
+        if (!button.querySelector('.spinner')) {
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            button.prepend(spinner);
+        }
+    } else {
+        if (span) span.classList.remove('hidden');
+        const spinner = button.querySelector('.spinner');
+        if (spinner) spinner.remove();
+    }
+};
+
+const formatDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getDutyDate = (dateTime) => {
+    const dutyDate = new Date(dateTime);
+    if (dutyDate.getHours() < 4) {
+        dutyDate.setDate(dutyDate.getDate() - 1);
+    }
+    dutyDate.setHours(0, 0, 0, 0);
+    return dutyDate;
+};
+
+const isDutyDateOff = (dutyDate, holidays) => {
+    const day = dutyDate.getDay();
+    const dateKey = formatDateKey(dutyDate);
+    if (day === 0) return true; // Sunday
+    if (holidays.has(dateKey)) return true; // Holiday
+    return false;
+};
+
+const getNextDutyDateStart = (dutyDate) => {
+    const nextDate = new Date(dutyDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    nextDate.setHours(4, 0, 0, 0);
+    return nextDate;
+};
+
+const getWorkableSlotsForDate = (dutyDate, shiftType) => {
+    const dayOfWeek = dutyDate.getDay();
+    const config = SHIFT_CONFIG[shiftType][dayOfWeek === 6 ? 'saturday' : 'weekday'];
+
+    const createDate = (h, m) => new Date(dutyDate.getFullYear(), dutyDate.getMonth(), dutyDate.getDate(), h, m, 0, 0);
+
+    let shiftStart = createDate(config.start[0], config.start[1]);
+    let shiftEnd = createDate(config.end[0], config.end[1]);
+
+    if (shiftType === 'night' && config.end[0] < config.start[0]) {
+        shiftEnd.setDate(shiftEnd.getDate() + 1);
+    }
+
+    if (!config.break) {
+        return [[shiftStart, shiftEnd]];
+    }
+
+    let breakStart = createDate(config.break.start[0], config.break.start[1]);
+    let breakEnd = createDate(config.break.end[0], config.break.end[1]);
+
+    if (shiftType === 'night' && config.break.end[0] < config.break.start[0]) {
+        breakEnd.setDate(breakEnd.getDate() + 1);
+    }
+
+    return [
+        [shiftStart, breakStart],
+        [breakEnd, shiftEnd]
+    ];
+};
+
+function calculateCompletionTime({ totalHours, startTime, holidays, initialShift, shiftChangeDate, newShift }) {
+    let remainingHours = totalHours;
+    let currentDateTime = new Date(startTime);
+    const workBreakdown = [];
+    let safetyCounter = 0;
+
+    while (remainingHours > 1 / 60) {
+        safetyCounter++;
+        if (safetyCounter > 10000) {
+            throw new Error('Calculation stopped because of an unexpected date/shift condition.');
+        }
+
+        const dutyDate = getDutyDate(currentDateTime);
+        const dutyDateKey = formatDateKey(dutyDate);
+
+        if (isDutyDateOff(dutyDate, holidays)) {
+            workBreakdown.push(
+                `${dutyDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}: Duty Off`
+            );
+            currentDateTime = getNextDutyDateStart(dutyDate);
+            continue;
+        }
+
+        let currentShift = initialShift;
+        if (shiftChangeDate && dutyDateKey >= shiftChangeDate) {
+            currentShift = newShift || initialShift;
+        }
+
+        const workSlots = getWorkableSlotsForDate(dutyDate, currentShift);
+
+        for (const [slotStart, slotEnd] of workSlots) {
+            if (currentDateTime >= slotEnd) continue;
+            if (currentDateTime < slotStart) currentDateTime = new Date(slotStart);
+
+            const availableHours = (slotEnd.getTime() - currentDateTime.getTime()) / 3600000;
+            const hoursToWork = Math.min(remainingHours, availableHours);
+
+            if (hoursToWork > 0) {
+                const slotStartTime = new Date(currentDateTime);
+                currentDateTime = new Date(currentDateTime.getTime() + hoursToWork * 3600000);
+                remainingHours -= hoursToWork;
+
+                const dutyLabel = dutyDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                workBreakdown.push(
+                    `${dutyLabel}: ${currentShift === 'day' ? 'Day Shift' : 'Night Shift'} — Worked ${formatHours(hoursToWork)} ` +
+                    `(${slotStartTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}–${currentDateTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })})`
+                );
+            }
+
+            if (remainingHours <= 1 / 60) break;
+        }
+
+        if (remainingHours <= 1 / 60) break;
+        currentDateTime = getNextDutyDateStart(dutyDate);
+    }
+
+    return { finalTime: currentDateTime, breakdown: workBreakdown };
+}
+
+function loadJobCardsFromLocalStorage() {
+    try {
+        const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+        renderSavedJobCards(storedCards);
+    } catch (error) {
+        showMessage(`Failed to load job cards: ${error.message}`);
+    }
+}
+
+function saveJobCardToLocalStorage(card) {
+    try {
+        const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+        storedCards.push(card);
+        localStorage.setItem('jobCards', JSON.stringify(storedCards));
+        loadJobCardsFromLocalStorage();
+        showMessage('Job card saved successfully!', false);
+    } catch (error) {
+        showMessage(`Failed to save job card: ${error.message}`);
+    }
+}
+
+function deleteJobCardFromLocalStorage(index) {
+    try {
+        const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+        if (index > -1) {
+            storedCards.splice(index, 1);
+            localStorage.setItem('jobCards', JSON.stringify(storedCards));
+            loadJobCardsFromLocalStorage();
+            showMessage('Job card deleted!', false);
+        }
+    } catch (error) {
+        showMessage(`Failed to delete job card: ${error.message}`);
+    }
+}
+
+function exportDataToCSV() {
+    try {
+        const storedCards = JSON.parse(localStorage.getItem('jobCards')) || [];
+        if (storedCards.length === 0) {
+            showMessage('No job cards to export.');
+            return;
+        }
+
+        const header = ['Sr. No.', 'Assigned Hours', 'Actual Hours to Fill', 'Start Date and Time', 'Rounded Out Date and Time'];
+        const rows = [header.join(',')];
+
+        storedCards.forEach((card, index) => {
+            const row = [
+                index + 1,
+                card.assignedHours,
+                card.incentiveHours,
+                new Date(card.inTime).toLocaleString(),
+                new Date(card.roundedOutTime).toLocaleString()
+            ];
+            rows.push(row.join(','));
         });
 
-        function formatMinutes(totalMins) {
-            const h = Math.floor(totalMins / 60);
-            const m = Math.round(totalMins % 60);
-            let res = [];
-            if (h > 0) res.push(`${h} hour${h > 1 ? 's' : ''}`);
-            if (m > 0) res.push(`${m} minute${m > 1 ? 's' : ''}`);
-            return res.join(' and ') || '0 minutes';
+        const csvContent = rows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'job_cards.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showMessage('Data exported to job_cards.csv!', false);
+    } catch (error) {
+        showMessage(`Export failed: ${error.message}`);
+    }
+}
+
+function renderSavedJobCards(cards) {
+    ui.savedJobCardsContainer.innerHTML = cards.length === 0
+        ? `<div class="text-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
+            <h3 class="text-lg font-medium text-gray-800">No Saved Cards</h3>
+            <p class="mt-1 text-sm text-gray-500">Calculate and save a job card to see it here.</p>
+           </div>`
+        : cards.map((card, index) => {
+            const outTimeToShow = card.roundedOutTime || card.outTime;
+            const outTimeLabel = card.roundedOutTime ? 'Rounded Out' : 'Optimal Out';
+            return `
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative group">
+                    <button class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" data-index="${index}" title="Delete Card">&times;</button>
+                    <h3 class="font-bold text-gray-800 mb-2">Job Card #${index + 1}</h3>
+                    <p class="text-sm"><strong class="font-medium text-gray-600">Assigned:</strong> ${formatHours(card.assignedHours)}</p>
+                    <p class="text-sm"><strong class="font-medium text-gray-600">Start:</strong> ${formatDateTime(new Date(card.inTime))}</p>
+                    <p class="text-sm"><strong class="font-medium text-gray-600">${outTimeLabel}:</strong> ${formatDateTime(new Date(outTimeToShow))}</p>
+                </div>
+            `;
+        }).join('');
+
+    ui.savedJobCardsContainer.querySelectorAll('button[data-index]').forEach(button => {
+        button.addEventListener('click', (e) => {
+            deleteJobCardFromLocalStorage(e.currentTarget.getAttribute('data-index'));
+        });
+    });
+}
+
+const handleFormSubmit = (e) => {
+    e.preventDefault();
+    setButtonLoading(ui.calculateBtn, true);
+
+    try {
+        const assignedHours = parseInt(ui.assignedHoursInput.value) || 0;
+        const assignedMinutes = parseInt(ui.assignedMinutesInput.value) || 0;
+        const totalAssignedTime = assignedHours + (assignedMinutes / 60);
+
+        if (totalAssignedTime <= 0) {
+            showMessage('Please enter a valid assigned time.');
+            return;
         }
 
-        function parseDDMMYYYY(dateStr) {
-            if (!dateStr) return null;
-            const parts = dateStr.split('-');
-            if (parts.length !== 3) return null;
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        const initialShift = document.getElementById('shift').value;
+        const dateValue = document.getElementById('dateIn').value;
+        const timeValue = document.getElementById('timeIn').value;
+
+        if (!dateValue || !timeValue) {
+            showMessage('Please enter Start Date and Start Time.');
+            return;
         }
 
-        function formatDisplayDate(dateObj) {
-            const d = String(dateObj.getDate()).padStart(2, '0');
-            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const y = dateObj.getFullYear();
-            const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(dateObj);
-            return `${dayName} ${d}-${m}-${y}`;
+        const startTime = new Date(`${dateValue}T${timeValue}`);
+        if (isNaN(startTime.getTime())) {
+            showMessage('Invalid Start Date or Start Time.');
+            return;
         }
 
-        function formatDateTimeOut(dateObj) {
-            const d = String(dateObj.getDate()).padStart(2, '0');
-            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const y = dateObj.getFullYear();
-            const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(dateObj);
-            const hh = String(dateObj.getHours()).padStart(2, '0');
-            const mm = String(dateObj.getMinutes()).padStart(2, '0');
-            return `${dayName}, ${d}-${m}-${y} at ${hh}:${mm} hrs`;
-        }
+        const holidayText = document.getElementById('holidays').value;
+        const holidays = new Set(holidayText.split(',').map(s => s.trim()).filter(Boolean));
 
-        document.getElementById('jobForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        const shiftChangeDate = ui.shiftChangeDateInput.value || null;
+        const newShift = ui.shiftChangeSelect.value || null;
 
-            const inputHrs = parseFloat(document.getElementById('assignedHours').value) || 0;
-            const inputMins = parseFloat(document.getElementById('assignedMinutes').value) || 0;
-            let remainingMins = Math.round(((inputHrs * 60) + inputMins) * (2 / 3));
+        const incentiveHours = totalAssignedTime * (2 / 3);
 
-            const rawStartDate = document.getElementById('dateIn').value;
-            const startTimeStr = document.getElementById('timeIn').value;
-            const startDateIso = parseDDMMYYYY(rawStartDate);
-
-            const rawHolidays = document.getElementById('holidays').value;
-            const holidaysIsoList = rawHolidays ? rawHolidays.split(',').map(s => parseDDMMYYYY(s.trim())) : [];
-
-            const rawShiftChangeDate = document.getElementById('shiftChangeDate').value;
-            const shiftChangeIso = parseDDMMYYYY(rawShiftChangeDate);
-
-            const newShift = document.getElementById('shiftChange').value;
-            const initialShift = document.getElementById('shift').value;
-
-            let current = new Date(`${startDateIso}T${startTimeStr}:00`);
-            const startInTime = new Date(current);
-
-            // Daily tracking dictionary for combining lunch split lines
-            let dailyEntries = {};
-
-            function addDailyWork(dateLabel, shiftName, minsWorked, startHM, endHM) {
-                if (!dailyEntries[dateLabel]) {
-                    dailyEntries[dateLabel] = {
-                        shift: shiftName,
-                        totalMins: 0,
-                        startHM: startHM,
-                        endHM: endHM,
-                        isOff: false
-                    };
-                }
-                dailyEntries[dateLabel].totalMins += minsWorked;
-                dailyEntries[dateLabel].endHM = endHM; // update end time
-            }
-
-            function addDailyOff(dateLabel, reason) {
-                dailyEntries[dateLabel] = {
-                    isOff: true,
-                    reason: reason
-                };
-            }
-
-            while (remainingMins > 0) {
-                const year = current.getFullYear();
-                const month = String(current.getMonth() + 1).padStart(2, '0');
-                const day = String(current.getDate()).padStart(2, '0');
-                const dateStrIso = `${year}-${month}-${day}`;
-                const dayOfWeek = current.getDay();
-
-                let currentShift = (shiftChangeIso && dateStrIso >= shiftChangeIso) ? newShift : initialShift;
-
-                // Off-days (Sunday / Holiday)
-                if (dayOfWeek === 0 || holidaysIsoList.includes(dateStrIso)) {
-                    let dayLabel = formatDisplayDate(current);
-                    addDailyOff(dayLabel, dayOfWeek === 0 ? "Sunday - Duty Off" : "Holiday - Duty Off");
-
-                    current.setDate(current.getDate() + 1);
-                    current.setHours(currentShift === 'night' ? 16 : 6, currentShift === 'night' ? 0 : 30, 0, 0);
-                    continue;
-                }
-
-                // Midnight portion for Night Shift (00:00 - 01:30)
-                let minsFromMidnight = current.getHours() * 60 + current.getMinutes();
-                if (currentShift === 'night' && minsFromMidnight < 90) {
-                    let avail = 90 - minsFromMidnight;
-                    let worked = Math.min(remainingMins, avail);
-                    remainingMins -= worked;
-
-                    let prevDate = new Date(current);
-                    prevDate.setDate(prevDate.getDate() - 1);
-                    let dayLabel = formatDisplayDate(prevDate);
-
-                    let startHM = startTimeStr;
-                    let endMins = minsFromMidnight + worked;
-                    let endHM = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
-
-                    addDailyWork(dayLabel, "Night Shift", worked, startHM, endHM);
-
-                    current.setMinutes(current.getMinutes() + worked);
-
-                    if (remainingMins > 0) {
-                        current.setHours(16, 0, 0, 0);
-                    }
-                    continue;
-                }
-
-                // Regular Shifts
-                if (currentShift === 'night') {
-                    if (dayOfWeek === 6) { // Saturday Night: 12:00 - 17:30 (5.5 hrs / 330 mins)
-                        let avail = 330;
-                        let worked = Math.min(remainingMins, avail);
-                        remainingMins -= worked;
-
-                        let dayLabel = formatDisplayDate(current);
-                        addDailyWork(dayLabel, "Night Shift", worked, "12:00", "17:30");
-
-                        current.setMinutes(current.getMinutes() + worked);
-                        if (remainingMins > 0) {
-                            current.setDate(current.getDate() + 1);
-                            current.setHours(16, 0, 0, 0);
-                        }
-                    } else { // Weekday Night: 16:00 - 21:00 & 22:00 - 01:30
-                        let dayLabel = formatDisplayDate(current);
-
-                        if (minsFromMidnight < 1260) {
-                            let avail1 = 1260 - Math.max(minsFromMidnight, 960);
-                            let worked1 = Math.min(remainingMins, avail1);
-                            remainingMins -= worked1;
-
-                            let startHM = "16:00";
-                            let endMins = 960 + worked1;
-                            let endHM = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
-
-                            addDailyWork(dayLabel, "Night Shift", worked1, startHM, endHM);
-
-                            current.setMinutes(current.getMinutes() + worked1);
-
-                            if (current.getHours() === 21) {
-                                current.setHours(22, 0, 0, 0); // Lunch Skip
-                            }
-                        }
-
-                        if (remainingMins > 0 && current.getHours() >= 22) {
-                            let minsNow = current.getHours() * 60 + current.getMinutes();
-                            let avail2 = 1530 - minsNow; // up to 01:30 AM next day
-                            let worked2 = Math.min(remainingMins, avail2);
-                            remainingMins -= worked2;
-
-                            let endMins = minsNow + worked2;
-                            let endHH = Math.floor(endMins / 60);
-                            let endMM = endMins % 60;
-                            if (endHH >= 24) endHH -= 24;
-                            let endHM = `${String(endHH).padStart(2, '0')}:${String(endMM).padStart(2, '0')}`;
-
-                            addDailyWork(dayLabel, "Night Shift", worked2, "16:00", endHM);
-
-                            current.setMinutes(current.getMinutes() + worked2);
-
-                            if (remainingMins > 0) {
-                                current.setDate(current.getDate() + 1);
-                                current.setHours(16, 0, 0, 0);
-                            }
-                        }
-                    }
-                } else { // Day Shift
-                    if (dayOfWeek === 6) { // Saturday Day: 06:30 - 12:00 (5.5 hrs / 330 mins)
-                        let avail = 330;
-                        let worked = Math.min(remainingMins, avail);
-                        remainingMins -= worked;
-
-                        let dayLabel = formatDisplayDate(current);
-                        addDailyWork(dayLabel, "Day Shift", worked, "06:30", "12:00");
-
-                        current.setMinutes(current.getMinutes() + worked);
-                        if (remainingMins > 0) {
-                            current.setDate(current.getDate() + 1);
-                            current.setHours(6, 30, 0, 0);
-                        }
-                    } else { // Weekday Day: 06:30 - 11:30 & 12:30 - 16:00
-                        let dayLabel = formatDisplayDate(current);
-
-                        if (minsFromMidnight < 690) {
-                            let avail1 = 690 - Math.max(minsFromMidnight, 390);
-                            let worked1 = Math.min(remainingMins, avail1);
-                            remainingMins -= worked1;
-
-                            let endMins = 390 + worked1;
-                            let endHM = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
-
-                            addDailyWork(dayLabel, "Day Shift", worked1, "06:30", endHM);
-
-                            current.setMinutes(current.getMinutes() + worked1);
-
-                            if (current.getHours() === 11 && current.getMinutes() === 30) {
-                                current.setHours(12, 30, 0, 0); // Lunch Skip
-                            }
-                        }
-
-                        if (remainingMins > 0 && (current.getHours() * 60 + current.getMinutes()) >= 750) {
-                            let minsNow = current.getHours() * 60 + current.getMinutes();
-                            let avail2 = 960 - minsNow;
-                            let worked2 = Math.min(remainingMins, avail2);
-                            remainingMins -= worked2;
-
-                            let endMins = minsNow + worked2;
-                            let endHM = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
-
-                            addDailyWork(dayLabel, "Day Shift", worked2, "06:30", endHM);
-
-                            current.setMinutes(current.getMinutes() + worked2);
-
-                            if (remainingMins > 0) {
-                                current.setDate(current.getDate() + 1);
-                                current.setHours(6, 30, 0, 0);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Generate Serial Number
-            const staffNo = document.getElementById('staffNo').value.trim() || '13038';
-            const mm = document.getElementById('jobMonth').value.trim() || '09';
-            const yy = document.getElementById('jobYear').value.trim() || '26';
-            const nextCardNo = String(jobCardsList.length + 1).padStart(2, '0');
-            const serialNo = `${staffNo}-${mm}-${yy}-${nextCardNo}`;
-
-            // Build Breakdown Text Array
-            const breakdownFormatted = [];
-            for (let dayKey in dailyEntries) {
-                let entry = dailyEntries[dayKey];
-                if (entry.isOff) {
-                    breakdownFormatted.push(`${dayKey}: ${entry.reason}`);
-                } else {
-                    breakdownFormatted.push(`${dayKey}: ${entry.shift} — Worked ${formatMinutes(entry.totalMins)} (${entry.startHM}–${entry.endHM})`);
-                }
-            }
-
-            // Store Current Calculated Job Card Data
-            currentCalculatedCard = {
-                serialNo: serialNo,
-                assignedTime: `${inputHrs} hrs ${inputMins} mins`,
-                actualTime: formatMinutes(Math.round(((inputHrs * 60) + inputMins) * (2 / 3))),
-                startTime: `${rawStartDate} ${startTimeStr}`,
-                outTime: formatDateTimeOut(current),
-                breakdown: breakdownFormatted
-            };
-
-            // Display Results in UI
-            document.getElementById('cardSerialText').textContent = serialNo;
-            document.getElementById('actualHoursText').textContent = currentCalculatedCard.actualTime;
-            document.getElementById('inTimeText').textContent = currentCalculatedCard.startTime;
-            document.getElementById('outTimeText').textContent = currentCalculatedCard.outTime;
-
-            const breakdownUI = document.getElementById('breakdownList');
-            breakdownUI.innerHTML = breakdownFormatted.map(item => `<li>${item}</li>`).join('');
-
-            document.getElementById('result').classList.remove('hidden');
+        const { finalTime, breakdown } = calculateCompletionTime({
+            totalHours: incentiveHours,
+            startTime,
+            holidays,
+            initialShift,
+            shiftChangeDate,
+            newShift
         });
 
-        // Add Card to Monthly Export List
-        document.getElementById('addCardBtn').addEventListener('click', function() {
-            if (!currentCalculatedCard) return;
+        const roundedOutTime = roundToNearestQuarterHour(finalTime);
 
-            jobCardsList.push({...currentCalculatedCard});
-            currentCalculatedCard = null;
+        currentCalculationResult = {
+            id: Date.now(),
+            assignedHours: totalAssignedTime,
+            inTime: startTime.toISOString(),
+            outTime: finalTime.toISOString(),
+            roundedOutTime: roundedOutTime.toISOString(),
+            incentiveHours,
+            breakdown,
+            createdAt: new Date().toISOString()
+        };
 
-            document.getElementById('result').classList.add('hidden');
-            renderCardsTable();
-        });
+        document.getElementById('out_incentiveHours').textContent = formatHours(incentiveHours);
+        document.getElementById('out_inTime').textContent = formatDateTime(startTime);
+        document.getElementById('out_outTime').textContent = formatDateTime(finalTime);
+        document.getElementById('out_roundedOutTime').textContent = formatDateTime(roundedOutTime);
 
-        function renderCardsTable() {
-            const tableBody = document.getElementById('cardsTableBody');
-            const container = document.getElementById('savedCardsSection');
+        ui.workBreakdownList.innerHTML = breakdown.map(item => `<li>${item}</li>`).join('');
+        ui.resultDiv.classList.remove('hidden');
 
-            if (jobCardsList.length === 0) {
-                container.classList.add('hidden');
-                return;
-            }
+    } catch (error) {
+        showMessage(`An unexpected error occurred: ${error.message}`);
+    } finally {
+        setButtonLoading(ui.calculateBtn, false);
+    }
+};
 
-            container.classList.remove('hidden');
-            document.getElementById('cardCount').textContent = jobCardsList.length;
+const handleSave = () => {
+    if (!currentCalculationResult) {
+        showMessage('Please calculate the time before saving.');
+        return;
+    }
+    setButtonLoading(ui.saveBtn, true);
+    saveJobCardToLocalStorage(currentCalculationResult);
+    setButtonLoading(ui.saveBtn, false);
+};
 
-            tableBody.innerHTML = jobCardsList.map((card, index) => `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="py-2 px-3 font-bold text-indigo-900">${card.serialNo}</td>
-                    <td class="py-2 px-3">${card.assignedTime}</td>
-                    <td class="py-2 px-3 font-semibold text-green-700">${card.actualTime}</td>
-                    <td class="py-2 px-3">${card.startTime}</td>
-                    <td class="py-2 px-3 font-semibold">${card.outTime}</td>
-                    <td class="py-2 px-3">
-                        <button onclick="removeCard(${index})" class="text-red-600 font-bold hover:underline">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    ui.dateIn.valueAsDate = new Date();
+    loadJobCardsFromLocalStorage();
 
-        function removeCard(index) {
-            jobCardsList.splice(index, 1);
-            // Re-index Serial Numbers
-            const staffNo = document.getElementById('staffNo').value.trim() || '13038';
-            const mm = document.getElementById('jobMonth').value.trim() || '09';
-            const yy = document.getElementById('jobYear').value.trim() || '26';
+    ui.closeMessageBtn.addEventListener('click', () => {
+        ui.messageBox.classList.add('hidden');
+    });
 
-            jobCardsList.forEach((card, idx) => {
-                const cardNo = String(idx + 1).padStart(2, '0');
-                card.serialNo = `${staffNo}-${mm}-${yy}-${cardNo}`;
-            });
+    ui.clearBtn.addEventListener('click', () => {
+        ui.form.reset();
+        ui.dateIn.valueAsDate = new Date();
+        ui.resultDiv.classList.add('hidden');
+        currentCalculationResult = null;
+    });
 
-            renderCardsTable();
-        }
+    ui.form.addEventListener('submit', handleFormSubmit);
+    ui.saveBtn.addEventListener('click', handleSave);
+    ui.exportBtn.addEventListener('click', exportDataToCSV);
+});
+</script>
 
-        // Export to Excel Sheet (.xlsx)
-        document.getElementById('exportExcelBtn').addEventListener('click', function() {
-            if (jobCardsList.length === 0) return;
-
-            const excelData = jobCardsList.map(card => ({
-                "Job Card Serial No": card.serialNo,
-                "Assigned Hours": card.assignedTime,
-                "Actual Worked Hours (2/3)": card.actualTime,
-                "Start Date & Time": card.startTime,
-                "Optimal Out Date & Time": card.outTime,
-                "Detailed Work Breakdown": card.breakdown.join(" | ")
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Monthly Job Cards");
-
-            const staffNo = document.getElementById('staffNo').value.trim() || '13038';
-            const mm = document.getElementById('jobMonth').value.trim() || '09';
-            const yy = document.getElementById('jobYear').value.trim() || '26';
-
-            XLSX.writeFile(workbook, `Job_Cards_${staffNo}_${mm}-20${yy}.xlsx`);
-        });
-    </script>
 </body>
 </html>
